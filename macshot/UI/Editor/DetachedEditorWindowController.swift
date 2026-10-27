@@ -204,9 +204,16 @@ class DetachedEditorWindowController: NSObject, NSWindowDelegate {
         captureCleanBaseline(view)
 
         win.contentView = container
+        // Activate the app BEFORE taking key status: AppKit only reliably
+        // grants key-window status to windows of an app that is (or just
+        // became) active, and gesture events (trackpad pinch) are delivered
+        // only to key windows. On a fresh install this editor can be the first
+        // real window the never-before-active app shows — activating after
+        // makeKeyAndOrderFront leaves the window gesture-dead until the user
+        // clicks it or a Save panel activates the app.
+        NSApp.activate(ignoringOtherApps: true)
         win.makeKeyAndOrderFront(nil)
         win.makeFirstResponder(view)
-        NSApp.activate(ignoringOtherApps: true)
 
         // Fit-to-window for large images: compute the magnification that makes
         // the image just fit the visible scroll viewport, capped at 1.0 so we

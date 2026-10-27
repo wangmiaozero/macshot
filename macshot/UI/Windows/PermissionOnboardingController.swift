@@ -305,6 +305,24 @@ class PermissionOnboardingController: NSWindowController {
         pollTimer?.invalidate()
         pollTimer = nil
         window?.orderOut(nil)
+        finishGranted()
+    }
+
+    /// Shared exit for every "permission granted" path (Continue button and the
+    /// title-bar red-X hit during the 1s auto-continue gap).
+    ///
+    /// Activating macshot here is the fix for gesture-dead windows on a fresh
+    /// install: AppKit does not reliably grant key-window status to windows of
+    /// an app that has never been active, and trackpad gesture events
+    /// (`magnify`) are delivered only to key windows. Nothing else in the
+    /// first-run flow activates the app — the overlay and pin panels are
+    /// deliberately `.nonactivatingPanel` — so without this, pinch-to-zoom on
+    /// the first pin (and the first editor) stays dead until some modal that
+    /// calls `NSApp.activate` (e.g. the Save panel) happens to run. Taking
+    /// focus at this moment is expected UX: the user just finished setting
+    /// macshot up in System Settings.
+    private func finishGranted() {
+        NSApp.activate(ignoringOtherApps: true)
         onPermissionGranted?()
     }
 }
@@ -318,12 +336,11 @@ extension PermissionOnboardingController: NSWindowDelegate {
         pollTimer = nil
         // If permission was already granted (red-X hit during the 1s auto-continue
         // gap), honor the granted path so prewarm still runs; otherwise it's a
-        // plain dismissal.
+        // plain dismissal. The granted path also activates the app (see
+        // finishGranted for why that matters on a fresh install).
         if permissionGranted {
-            let granted = onPermissionGranted
-            onPermissionGranted = nil
             onClose = nil
-            granted?()
+            finishGranted()
         } else {
             onClose?()
             onClose = nil
